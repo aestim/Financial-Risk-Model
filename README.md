@@ -20,7 +20,7 @@ The Z''-Score is selected as the foundational metric for this model due to its b
 
 - Method: Accurately extract the necessary four financial variables ($X_1$ to $X_4$) from 10-K/10-Q filings and calculate the score.
 
-$$Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$
+**$$Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$**
 
 | Variable | Description |
 | ----- | ----- |
