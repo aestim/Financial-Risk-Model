@@ -14,7 +14,8 @@ TARGET_YEAR = 2025
 TARGET_QUARTER = 1
 
 # Output file for storing filtered 8-K records
-OUTPUT_FILE = f"sec_8k_index_{TARGET_YEAR}_Q{TARGET_QUARTER}.csv"
+OUTPUT_DIR = "data/2025q1"
+OUTPUT_FILE = f"{OUTPUT_DIR}/sec_8k_index_{TARGET_YEAR}_Q{TARGET_QUARTER}.csv"
 
 # Master Index File Download URL
 INDEX_URL = f"https://www.sec.gov/Archives/edgar/full-index/{TARGET_YEAR}/QTR{TARGET_QUARTER}/master.idx"

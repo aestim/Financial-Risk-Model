@@ -8,9 +8,12 @@ import os
 USER_AGENT = "tkfpsk@gmail.com"
 HEADERS = {'User-Agent': USER_AGENT}
 
+# Define the directory where the input index is located
+DATA_DIR = "data/2025q1"
+
 # File Paths
-INPUT_FILE = "sec_8k_index_2025_Q1.csv"
-OUTPUT_FILE = "bankruptcy_labels_2025_Q1.csv" # 🚨 This file is used as the checkpoint
+INPUT_FILE = os.path.join(DATA_DIR, "sec_8k_index_2025_Q1.csv")
+OUTPUT_FILE = os.path.join(DATA_DIR, "bankruptcy_labels_2025_Q1.csv") # 🚨 This file is used as the checkpoint
 
 # Base URL for SEC Archives
 BASE_URL = "https://www.sec.gov/Archives"
