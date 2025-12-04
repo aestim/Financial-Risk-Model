@@ -22,7 +22,8 @@ The Z''-Score is selected as the foundational metric for this model due to its b
 
 $$Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$
 
-| Variable | Description || ----- | ----- |
+| Variable | Description |
+| ----- | ----- |
 | $X_1$ | Working Capital / Total Assets (Liquidity) |
 | $X_2$ | Retained Earnings / Total Assets (Age of Firm's Earnings) |
 | $X_3$ | Earnings Before Interest & Taxes (EBIT) / Total Assets (Profitability) |
