@@ -1,0 +1,7 @@
+# requirements.txt
+# Data processing and analysis
+pandas
+
+# PostgreSQL database adapter
+# Using the binary version to avoid compilation issues
+psycopg2-binary
