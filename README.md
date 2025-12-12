@@ -20,7 +20,7 @@ The Z''-Score is selected as the foundational metric for this model due to its b
 
 - Method: Accurately extract the necessary four financial variables ($X_1$ to $X_4$) from 10-K/10-Q filings and calculate the score.
 
-**$$Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$**
+$$Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$
 
 | Variable | Description |
 | ----- | ----- |
@@ -32,24 +32,21 @@ The Z''-Score is selected as the foundational metric for this model due to its b
 ## 💻 Technology Stack
 
 - Language: Python
-
-- Data Acquisition/Processing: pandas, numpy, SEC EDGAR API (or related libraries)
-
+- Data Acquisition/Processing: **pandas**, **numpy**, SEC EDGAR API (or related libraries)
+- **Database:** **PostgreSQL** (for persistent storage of calculated results)
+- **DB Connector:** **psycopg2** (for secure, type-safe data insertion)
 - Machine Learning: scikit-learn, LightGBM / XGBoost (Classification)
-
 - Visualization: matplotlib, seaborn
 
 ## 🗺️ Development Roadmap
 
 1. Data Acquisition & Preprocessing: Extract and standardize financial statement data from SEC 10-K/10-Q filings.
-
 2. Feature Engineering:
     - Calculate Z''-Score and its constituent components.
     - Derive supplementary financial health indicators (liquidity, profitability, growth metrics).
-
-3. Model Training & Evaluation: Train classification models using financial distress (e.g., bankruptcy, default) as the target variable. Evaluate performance using metrics like AUC, Accuracy, and F1-Score.
-
-4. Interpretation & Deployment: Analyze model predictions (e.g., Feature Importance) and integrate the model into a practical tool for investment decision-making.
+3. **Data Persistence:** Implement robust logic for batch insertion/upsert into PostgreSQL, **including type safety checks (e.g., handling large integers and fiscal year floats)** to prevent database overflow errors.
+4. Model Training & Evaluation: Train classification models using financial distress (e.g., bankruptcy, default) as the target variable. Evaluate performance using metrics like AUC, Accuracy, and F1-Score.
+5. Interpretation & Deployment: Analyze model predictions (e.g., Feature Importance) and integrate the model into a practical tool for investment decision-making.
 
 ## 🤝 Contributing
 
