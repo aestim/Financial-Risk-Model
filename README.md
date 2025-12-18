@@ -14,42 +14,54 @@ This project is a Machine Learning-based financial risk analysis model developed
 
 The Z''-Score is selected as the foundational metric for this model due to its broader applicability across all industrial sectors (non-manufacturing and services included), making it ideal for the diverse universe of US publicly traded companies.
 
-$$ Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$
+**$$ Z'' = 6.56X_1 + 3.26X_2 + 6.72X_3 + 1.05X_4$$**
 
 |Variable|Description|
 |:--:|:---:|
-|$X_1$|Working Capital / Total Assets (Liquidity)| 
+|$X_1$|Working Capital / Total Assets (Liquidity)|
 |$X_2$|Retained Earnings / Total Assets (Age of Firm's Earnings)|
 |$X_3$|Earnings Before Interest & Taxes (EBIT) / Total Assets (Profitability)|
 |$X_4$|Book Value of Equity / Total Liabilities (Leverage/Solvency)|
 
 ## 💻 Technology Stack
 
-AreaTools & LibrariesPurposeLanguagePythonPrimary development languageData Processingpandas, numpyData acquisition and financial ratio calculationDatabasePostgreSQLPersistent storage and management of calculated resultsDB Connectorpsycopg2Secure, type-safe data insertion into PostgreSQLMachine Learningscikit-learn, LightGBM / XGBoostClassification model training and evaluation for financial distressData AcquisitionSEC EDGAR API (or related libraries)Extracting financial statement data from 10-K/10-Q filingsVisualizationmatplotlib, seabornResult analysis and visualization
+- **Language**: Python, (Optional: C++/Cython for high-performance calculation kernels)
+
+- **Data Acquisition/Processing**: pandas, numpy, SEC EDGAR API, BeautifulSoup/lxml (for unstructured filing data).
+
+- **Database**: PostgreSQL (Scalable, persistent storage of time-series financial data and calculated results).
+
+- **DB Connector**: psycopg2 / SQLAlchemy (for robust, ORM-based data handling and type safety).
+
+- **Machine Learning Core**: scikit-learn, LightGBM / XGBoost (Classification: known for speed and performance on structured data).
+
+- **Advanced Feature Engineering/NLP**: NLTK/spaCy (for extracting sentiment/risk vocabulary from Management Discussion and Analysis (MD&A) section).
+
+- **MLOps/Deployment**: Docker (containerization for reproducible environment), FastAPI (for serving the prediction model as a microservice).
 
 ## 🗺️ Development Roadmap
 
-1. Data Acquisition & Preprocessing (Phase 1 - NDX Focus):
+1. **Data Acquisition & Preprocessing** (Phase 1 - NDX Focus):
 
    - Extract and standardize financial data from SEC 10-K/10-Q filings for NDX companies.
    - Stabilize Accounting Classification Logic: Establish robust mapping logic to accurately extract $X_1$ to $X_4$ variables.
    - Implement Type Safety: Ensure type safety logic for PostgreSQL insertion, particularly for handling large integers and precise float values.
 
-2. Dataset Expansion (Phase 2 - SP500 Expansion):
+2. **Dataset Expansion** (Phase 2 - SP500 Expansion):
 
    - Expand the stabilized logic from NDX to S&P 500 companies to increase dataset size and industry diversity.
 
-3. Feature Engineering:
+3. **Feature Engineering**:
 
    - Calculate the Z''-Score and its constituent components.
    - Derive supplementary financial health indicators (liquidity, profitability, growth metrics).
 
-4. Model Training & Evaluation:
+4. **Model Training & Evaluation**:
 
    - Train classification models using financial distress (e.g., bankruptcy, default) as the target variable.
    - Evaluate performance using metrics like AUC, Accuracy, and F1-Score.
 
-5. Interpretation & Deployment:
+5. **Interpretation & Deployment**:
 
    - Analyze model predictions (e.g., Feature Importance).
 
