@@ -1,48 +1,54 @@
-# src/main.py
+import json
 import os
-from utils.cik_matcher import get_cik_list
-# from core.tag_mapper import run_tag_mapper # Placeholder for next step
-# from core.zscore_calculator import calculate_zscore # Placeholder for next step
+import sys
 
-# Define paths relative to the project root
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Add 'src' directory to sys.path to ensure absolute imports work correctly
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-NDX_FILE = os.path.join(PROJECT_ROOT, 'config', 'ndx_companies.csv')
-SUB_FILE = os.path.join(PROJECT_ROOT, 'data', 'raw', 'sub.txt')
-NUM_FILE = os.path.join(PROJECT_ROOT, 'data', 'raw', 'num.txt') 
-TAG_FILE = os.path.join(PROJECT_ROOT, 'data', 'raw', 'tag.txt') 
+from utils.cik_matcher import CIKMatcher
 
-def run_zscore_pipeline():
+def load_config():
     """
-    Executes the full Z-Score analysis pipeline.
+    Load the centralized config.json from the project root.
     """
-    print("--- Z-SCORE ANALYSIS PIPELINE STARTING ---")
-
-    # 1. CIK Extraction & Filtering
-    print("\nSTEP 1: Extracting CIKs from NDX list and SUB data...")
-    target_ciks = get_cik_list(NDX_FILE, SUB_FILE)
+    # [English Comment] Get the absolute path of the project root
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(base_dir, 'config.json')
     
-    if not target_ciks:
-        print("Pipeline failed: No CIKs found to analyze.")
+    if not os.path.exists(config_path):
+        print(f"[X] Error: Config file not found at {config_path}")
+        sys.exit(1)
+        
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def main():
+    # 1. Load configuration
+    config = load_config()
+    settings = config.get('settings', {})
+    
+    print("=== Financial Risk Model Pipeline Started ===")
+
+    # 2. CIK Matching Step
+    # [English Comment] Initialize CIKMatcher with the injected config object
+    matcher = CIKMatcher(config)
+    
+    # [English Comment] Execute mapping based on target_index defined in config
+    target_index = settings.get('target_index', 'NDX')
+    mapping_df = matcher.map_and_save(index_type=target_index)
+
+    if mapping_df is not None:
+        print(f"[+] Step 1 Complete: {len(mapping_df)} companies mapped to CIK.")
+    else:
+        print("[X] Step 1 Failed: Check internet connection or Wikipedia URL.")
         return
 
-    print(f"STEP 1 Completed. Found {len(target_ciks)} CIKs for analysis.")
-    # print(f"Target CIKs: {target_ciks}") # Uncomment to see the list
+    # 3. Future Steps (Dictionary Building, Verification, Calculation)
+    # print("\n[*] Moving to next stage: Dictionary Building...")
+    # builder = DictionaryBuilder(config)
+    # ...
 
-    # 2. Data Transformation (Tag Mapping & Value Extraction)
-    # The target_ciks list is passed directly to the next stage.
-    print("\nSTEP 2: Mapping XBRL tags to Z-Score variables (X1 to X5)...")
-    # zscore_data_df = run_tag_mapper(target_ciks, NUM_FILE, TAG_FILE)
-    
-    # 3. Z-Score Calculation
-    print("\nSTEP 3: Calculating Z-Scores and assessing distress...")
-    # final_results = calculate_zscore(zscore_data_df)
+    print("\n=== Pipeline Execution Finished ===")
 
-    # 4. Reporting
-    print("\nSTEP 4: Saving final results and generating visualizations...")
-    # final_results.to_csv(os.path.join(PROJECT_ROOT, 'output', 'final_zscore_results.csv'))
-
-    print("\n--- Z-SCORE ANALYSIS PIPELINE FINISHED ---")
-
-if __name__ == '__main__':
-    run_zscore_pipeline()
+if __name__ == "__main__":
+    main()

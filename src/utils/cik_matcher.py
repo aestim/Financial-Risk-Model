@@ -1,169 +1,129 @@
 import pandas as pd
+import requests
+import csv
+import io
+import os
 from pathlib import Path
-from sec_cik_mapper import StockMapper 
-import requests 
-import csv # Import the csv module for quoting options
+from sec_cik_mapper import StockMapper
 
-# Output file path for the final CIK mapping DataFrame
-OUTPUT_FILE_PATH = 'data/processed/ndx_cik_mapping.csv'
-WIKIPEDIA_URL = 'https://en.wikipedia.org/wiki/Nasdaq-100'
-
-# Define a standard User-Agent header to mimic a web browser
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-}
-
-def fetch_tickers_from_wikipedia():
-    """
-    Fetches the current NASDAQ 100 Ticker list by explicitly fetching HTML content 
-    and then parsing the tables to ensure stability against 403 errors and table index changes.
-    
-    Returns:
-        pd.DataFrame: DataFrame with 'NDX_Name' and 'Ticker' columns, or None on failure.
-    """
-    print(f"Step 1: Fetching current NASDAQ 100 Ticker list from Wikipedia URL: {WIKIPEDIA_URL}")
-    
-    try:
-        # 1. Use requests to fetch the HTML content with custom headers
-        response = requests.get(WIKIPEDIA_URL, headers=HEADERS)
-        response.raise_for_status() # Raise an HTTPError if the status is 4xx or 5xx
-
-        # 2. Read all HTML tables from the fetched content
-        tables = pd.read_html(response.text, header=0)
+class CIKMatcher:
+    def __init__(self, config):
+        """
+        Initialize CIKMatcher with centralized configuration.
+        """
+        # Load sections from config
+        self.matcher_cfg = config.get('cik_matcher', {})
+        self.paths_cfg = config.get('paths', {})
+        self.settings = config.get('settings', {})
         
-        target_df = None
+        # Build absolute output path
+        # Assuming execution from project root or handling via main.py
+        self.output_path = os.path.join(
+            self.paths_cfg.get('processed_data_dir', 'data/processed'),
+            self.matcher_cfg.get('output_file_name', 'cik_mapping.csv')
+        )
         
-        # 3. Iterate through tables to find the one containing the components
-        for df in tables:
-            # Check for the expected columns and row count
-            if ('Ticker' in df.columns or 'Symbol' in df.columns) and len(df) > 90: 
-                target_df = df
-                break
-        
-        if target_df is None:
-            raise ValueError("Could not locate the NASDAQ 100 components table based on column names and row count.")
+        # HTTP headers and Index URLs for expansion
+        self.headers = self.matcher_cfg.get('headers', {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
+        self.index_urls = self.matcher_cfg.get('index_urls', {
+            "NDX": "https://en.wikipedia.org/wiki/Nasdaq-100",
+            "SP500": "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        })
 
-        # --- Column Mapping ---
-        if 'Ticker' in target_df.columns:
-            ticker_col = 'Ticker'
-        else: 
-            ticker_col = 'Symbol'
+    def fetch_tickers_from_wikipedia(self, index_type):
+        """
+        Fetches ticker list from Wikipedia based on index_type (NDX, SP500, etc.)
+        Handles table parsing robustly.
+        """
+        url = self.index_urls.get(index_type)
+        if not url:
+            print(f"[X] Error: Unsupported index type: {index_type}")
+            return None
+
+        print(f"[*] Fetching {index_type} ticker list from Wikipedia...")
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+
+            # Using io.StringIO to avoid FutureWarning in pandas read_html
+            html_io = io.StringIO(response.text)
+            tables = pd.read_html(html_io, header=0)
             
-        if 'Company' in target_df.columns:
-            name_col = 'Company'
-        elif 'Name' in target_df.columns:
-            name_col = 'Name'
-        else:
-            name_col = target_df.columns[0]
+            target_df = None
+            # Find the component table (usually with 'ticker' or 'symbol' columns)
+            for df in tables:
+                cols = [c.lower() for c in df.columns]
+                if any(k in cols for k in ['ticker', 'symbol']) and len(df) > 90:
+                    target_df = df
+                    break
             
-        # Select and rename columns to standardize the DataFrame structure
-        final_df = target_df.rename(columns={name_col: 'NDX_Name', ticker_col: 'Ticker'})
+            if target_df is None:
+                raise ValueError(f"Could not locate the {index_type} components table.")
+
+            # Standardize column names for different Wikipedia table structures
+            target_df.columns = [c.lower() for c in target_df.columns]
+            ticker_col = 'ticker' if 'ticker' in target_df.columns else 'symbol'
+            
+            # Map company name column (often 'company' or 'name' or the first column)
+            if 'company' in target_df.columns:
+                name_col = 'company'
+            elif 'name' in target_df.columns:
+                name_col = 'name'
+            else:
+                name_col = target_df.columns[0]
+                
+            final_df = target_df.rename(columns={name_col: 'company_name', ticker_col: 'ticker'})
+            return final_df[['company_name', 'ticker']].dropna(subset=['ticker']).drop_duplicates()
+            
+        except Exception as e:
+            print(f"[X] Error during Wikipedia fetch: {e}")
+            return None
+
+    def map_and_save(self, index_type=None):
+        """
+        Main execution: Fetch -> Map to CIK -> Save to CSV
+        """
+        # Determine index type from argument or config
+        target_index = index_type or self.settings.get('target_index', 'NDX')
         
-        # Keep only the required columns, drop rows where Ticker is missing, and remove duplicates
-        final_df = final_df[['NDX_Name', 'Ticker']].dropna(subset=['Ticker']).drop_duplicates()
+        # 1. Fetch from Wikipedia
+        df = self.fetch_tickers_from_wikipedia(target_index)
+        if df is None or df.empty:
+            print("[X] Fatal Error: No tickers found.")
+            return None
+
+        # 2. Name Cleaning
+        df['company_name'] = df['company_name'].str.strip('\"\'')
         
-        return final_df.reset_index(drop=True)
+        # 3. Map Tickers to CIK using sec-cik-mapper
+        print("[*] Initializing StockMapper and mapping CIKs...")
+        try:
+            mapper = StockMapper()
+            ticker_to_cik_map = mapper.ticker_to_cik
+        except Exception as e:
+            print(f"[X] Error initializing StockMapper: {e}")
+            return None
+
+        df['cik'] = df['ticker'].apply(lambda x: ticker_to_cik_map.get(x, None))
         
-    except requests.exceptions.RequestException as req_e:
-        print(f"Error during HTTP request (e.g., connection, timeout): {req_e}")
-        return None
-    except ValueError as val_e:
-        print(f"Error during HTML parsing or table selection: {val_e}")
-        return None
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return None
+        # 4. Filter and Finalize
+        final_output = df.dropna(subset=['cik']).sort_values(by='company_name').reset_index(drop=True)
+        mismatch_count = len(df) - len(final_output)
 
-def map_company_to_cik_with_library_auto():
-    """
-    Fetches Tickers from Wikipedia robustly and maps them to CIK using sec-cik-mapper.
-    """
-    
-    # 1. Ticker list load via Wikipedia scraping
-    ndx_df = fetch_tickers_from_wikipedia()
-    
-    if ndx_df is None or ndx_df.empty:
-        print("Fatal Error: Could not retrieve a valid Ticker list.")
-        return None
+        print(f"\n===== {target_index} CIK Mapping Summary =====")
+        print(f"Total Tickers: {len(df)}")
+        print(f"Mapped CIKs:   {len(final_output)}")
+        print(f"Mismatches:    {mismatch_count}")
+        print("=========================================")
 
-    # --- Name Cleaning ---
-    print(f"Successfully loaded {len(ndx_df)} fresh tickers.")
-    print("Applying name cleaning: stripping surrounding quotes.")
-    # Remove surrounding double quotes or single quotes from the company name
-    ndx_df['NDX_Name'] = ndx_df['NDX_Name'].str.strip('\"\'')
-    
-    # Debug print after loading and cleaning
-    print("\n--- DEBUG: First 5 Tickers Loaded from Wikipedia ---")
-    print(ndx_df.head())
-    print("\nData Types:")
-    print(ndx_df.dtypes)
-    print("--------------------------------------\n")
-    
-    # 2. Initialize SEC StockMapper (Prepare CIK mapping)
-    print("Step 2: Initializing SEC StockMapper...")
-    try:
-        mapper = StockMapper()
-    except Exception as e:
-        print(f"Error initializing StockMapper: {e}")
-        return None
+        # 5. Save results using quoting=csv.QUOTE_MINIMAL as requested
+        output_dir = Path(self.output_path).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
         
-    ticker_to_cik_map = mapper.ticker_to_cik
-
-    # 3. Map Tickers to CIKs
-    print("Step 3: Mapping Tickers to CIKs...")
-    
-    # --- DEBUG: CIK Mapping Trace (First 5) ---
-    print("\n--- DEBUG: CIK Mapping Trace (First 5) ---")
-    for i, ticker in enumerate(ndx_df['Ticker'].head(5)):
-        # Retrieve the CIK as provided by the mapper (assumed 10-digit string)
-        final_cik = ticker_to_cik_map.get(ticker, None)
-        print(f"Ticker: {ticker}")
-        print(f"  -> Final CIK (From mapper): {final_cik}")
-        if i < 4:
-            print("---")
-    print("-------------------------------------------\n")
-    
-    # Apply mapping to the entire DataFrame
-    # Use the CIK as provided by the mapper, assuming it is already 10-digit padded.
-    ndx_df['CIK'] = ndx_df['Ticker'].apply(
-        lambda x: ticker_to_cik_map.get(x, None)
-    )
-    
-    # 4. Filter and Finalize
-    
-    # Successfully matched results
-    final_output = ndx_df.dropna(subset=['CIK'])
-    final_output = final_output[['NDX_Name', 'Ticker', 'CIK']].sort_values(by='NDX_Name').reset_index(drop=True)
-    
-    # Mismatch results (where CIK is None)
-    mismatch_output = ndx_df[ndx_df['CIK'].isnull()]
-    mismatch_output = mismatch_output[['NDX_Name', 'Ticker']].reset_index(drop=True)
-
-    print(f"\n===== CIK Mapping Summary (Auto Fetch) =====")
-    print(f"Total Tickers attempted: {len(ndx_df)}")
-    print(f"Successful CIK matches: {len(final_output)}")
-    print(f"Mismatched Tickers: {len(mismatch_output)}")
-    print("=========================================")
-
-    # --- ADDED: Mismatch List Output ---
-    if not mismatch_output.empty:
-        print("\n*** MISMATHED TICKER LIST (No CIK Found) ***")
-        print(mismatch_output.to_string(index=False)) 
-        print("*******************************************\n")
-
-    print("\n--- DEBUG: First 5 Successfully Mapped CIKs ---")
-    print(final_output.head())
-    print("\nData Types:")
-    print(final_output.dtypes)
-    print("--------------------------------------------------\n")
-
-    # 5. Save results
-    Path('data/processed').mkdir(parents=True, exist_ok=True)
-    # >>> MODIFIED LINE: Changed quoting=csv.QUOTE_NONE to quoting=csv.QUOTE_MINIMAL
-    final_output.to_csv(OUTPUT_FILE_PATH, index=False, quoting=csv.QUOTE_MINIMAL)
-    print(f"Final Ticker-CIK DataFrame saved to: {OUTPUT_FILE_PATH}")
-    
-    return final_output
-
-if __name__ == '__main__':
-    map_company_to_cik_with_library_auto()
+        final_output.to_csv(self.output_path, index=False, quoting=csv.QUOTE_MINIMAL)
+        print(f"[+] Mapping saved to: {self.output_path}")
+        
+        return final_output
