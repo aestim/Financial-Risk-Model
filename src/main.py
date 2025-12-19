@@ -6,6 +6,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from utils.cik_matcher import CIKMatcher
+from core.filling_verifier import FilingVerifier
 
 def load_config():
     """
@@ -23,30 +24,19 @@ def load_config():
         return json.load(f)
 
 def main():
-    # 1. Load configuration
     config = load_config()
-    settings = config.get('settings', {})
     
-    print("=== Financial Risk Model Pipeline Started ===")
-
-    # 2. CIK Matching Step
-    # [English Comment] Initialize CIKMatcher with the injected config object
+    # Step 1: CIK Matching
     matcher = CIKMatcher(config)
+    matcher.map_and_save()
+
+    # Step 2: Filing Verification
+    verifier = FilingVerifier(config)
+    missing_companies = verifier.verify_filings()
     
-    # [English Comment] Execute mapping based on target_index defined in config
-    target_index = settings.get('target_index', 'NDX')
-    mapping_df = matcher.map_and_save(index_type=target_index)
-
-    if mapping_df is not None:
-        print(f"[+] Step 1 Complete: {len(mapping_df)} companies mapped to CIK.")
-    else:
-        print("[X] Step 1 Failed: Check internet connection or Wikipedia URL.")
-        return
-
-    # 3. Future Steps (Dictionary Building, Verification, Calculation)
-    # print("\n[*] Moving to next stage: Dictionary Building...")
-    # builder = DictionaryBuilder(config)
-    # ...
+    if not missing_companies.empty:
+        print("[!] Missing Filers:")
+        print(missing_companies.to_string(index=False))
 
     print("\n=== Pipeline Execution Finished ===")
 
