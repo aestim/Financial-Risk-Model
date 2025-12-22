@@ -1,7 +1,9 @@
-# requirements.txt
 # Data processing and analysis
 pandas
 
-# PostgreSQL database adapter
-# Using the binary version to avoid compilation issues
+# Database core and ORM
+# This is required for engine management and connection pooling
+sqlalchemy
+
+# PostgreSQL database adapter (Binary version for easier installation)
 psycopg2-binary
