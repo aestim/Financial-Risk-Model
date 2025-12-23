@@ -73,10 +73,10 @@ class CIKMatcher:
             elif 'name' in target_df.columns:
                 name_col = 'name'
             else:
-                name_col = target_df.columns[0]
+                name_col = str(target_df.columns[0])
                 
             final_df = target_df.rename(columns={name_col: 'company_name', ticker_col: 'ticker'})
-            return final_df[['company_name', 'ticker']].dropna(subset=['ticker']).drop_duplicates()
+            return final_df[['company_name', 'ticker']].dropna(subset=['ticker']).drop_duplicates()  # type: ignore
             
         except Exception as e:
             print(f"[X] Error during Wikipedia fetch: {e}")
